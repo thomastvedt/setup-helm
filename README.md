@@ -31,7 +31,14 @@ helm 3.18.4
 If both `version` and `version-file` are set, an explicitly requested `version` takes precedence and `version-file` is ignored (a warning is emitted). Because `version` defaults to `latest`, `version-file` is only ignored when you set `version` to a specific value other than `latest`; if `version` is left at its default, the version from `version-file` is used.
 
 > [!NOTE]
-> If something goes wrong with fetching the latest version the action will use the hardcoded default version (currently v3.18.4). If you rely on a certain version higher than the default, you should explicitly use that version instead of latest.
+> If fetching the latest version fails after a few retries, the action will use the hardcoded default version (currently v3.18.4) and emit a warning. If you rely on a certain version higher than the default, you should explicitly use that version instead of latest. To make the step fail instead of installing the default version, set `latest-fallback` to `'false'`:
+>
+> ```yaml
+> - uses: azure/setup-helm@v5
+>   with:
+>      version: 'latest'
+>      latest-fallback: 'false'
+> ```
 
 The cached helm binary path is prepended to the PATH environment variable as well as stored in the helm-path output variable.
 Refer to the action metadata file for details about all the inputs https://github.com/Azure/setup-helm/blob/master/action.yml
