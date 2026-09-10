@@ -35,7 +35,7 @@ export async function run() {
 
    if (version.toLocaleLowerCase() === 'latest') {
       const fallbackToDefault =
-         core.getInput('latest-fallback').toLowerCase() !== 'false'
+         core.getInput('latest-fallback').toLowerCase() === 'true'
       version = await getLatestHelmVersion(fallbackToDefault)
    } else if (isMajorMinorShaped(version)) {
       version = await resolveLatestPatchVersion(downloadBaseURL, version)
@@ -158,11 +158,12 @@ export async function fetchLatestHelmVersion(): Promise<string> {
    }
 }
 
-// Gets the latest helm version. When it cannot be determined, either falls
-// back to the built-in default version (with a warning) or throws, depending
-// on fallbackToDefault.
+// Gets the latest helm version. When it cannot be determined, throws, or
+// falls back to the built-in default version with a warning when
+// fallbackToDefault is set. The default version can be a major behind what
+// 'latest' resolves to, so falling back to it is opt-in.
 export async function getLatestHelmVersion(
-   fallbackToDefault = true
+   fallbackToDefault = false
 ): Promise<string> {
    try {
       return await fetchLatestHelmVersion()

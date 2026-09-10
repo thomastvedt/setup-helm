@@ -209,12 +209,12 @@ describe('run.ts', () => {
       expect(core.warning).not.toHaveBeenCalled()
    })
 
-   test('getLatestHelmVersion() - return the stable version of HELM when every attempt fails', async () => {
+   test('getLatestHelmVersion() - return the stable version of HELM when every attempt fails and the fallback is enabled', async () => {
       const errorMessage: string = 'Network Error'
       const fetchSpy = vi
          .spyOn(globalThis, 'fetch')
          .mockRejectedValue(new Error(errorMessage))
-      expect(await getLatestHelmVersionWithoutDelay()).toBe(
+      expect(await getLatestHelmVersionWithoutDelay(true)).toBe(
          run.stableHelmVersion
       )
       expect(fetchSpy).toHaveBeenCalledTimes(3)
@@ -223,12 +223,12 @@ describe('run.ts', () => {
       )
    })
 
-   test('getLatestHelmVersion() - throw when every attempt fails and the fallback is disabled', async () => {
+   test('getLatestHelmVersion() - throw when every attempt fails', async () => {
       const errorMessage: string = 'Network Error'
       const fetchSpy = vi
          .spyOn(globalThis, 'fetch')
          .mockRejectedValue(new Error(errorMessage))
-      await expect(getLatestHelmVersionWithoutDelay(false)).rejects.toThrow(
+      await expect(getLatestHelmVersionWithoutDelay()).rejects.toThrow(
          `Unable to determine the latest Helm version: ${errorMessage}`
       )
       expect(fetchSpy).toHaveBeenCalledTimes(3)
@@ -352,7 +352,7 @@ describe('run.ts', () => {
    const inputs = (
       version: string,
       versionFile: string,
-      latestFallback: string = 'true'
+      latestFallback: string = 'false'
    ) =>
       vi.mocked(core.getInput).mockImplementation((name: string) => {
          if (name === 'version') return version
@@ -571,27 +571,9 @@ describe('run.ts', () => {
       ).rejects.toThrow('exceeded 100 probes')
    })
 
-   test('run() - install the default version when latest cannot be determined', async () => {
+   test('run() - fail when latest cannot be determined', async () => {
       stubDownloadChain()
       inputs('latest', '')
-      vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-         new Error('Network Error')
-      )
-      vi.useFakeTimers()
-
-      const pending = run.run()
-      await vi.runAllTimersAsync()
-      await pending
-
-      expect(core.warning).toHaveBeenCalledWith(
-         expect.stringContaining(run.stableHelmVersion)
-      )
-      expect(toolCache.find).toHaveBeenCalledWith('helm', run.stableHelmVersion)
-   })
-
-   test('run() - fail when latest cannot be determined and latest-fallback is false', async () => {
-      stubDownloadChain()
-      inputs('latest', '', 'false')
       vi.spyOn(globalThis, 'fetch').mockRejectedValue(
          new Error('Network Error')
       )
@@ -605,6 +587,24 @@ describe('run.ts', () => {
       )
 
       expect(toolCache.find).not.toHaveBeenCalled()
+   })
+
+   test('run() - install the default version when latest-fallback is true', async () => {
+      stubDownloadChain()
+      inputs('latest', '', 'true')
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+         new Error('Network Error')
+      )
+      vi.useFakeTimers()
+
+      const pending = run.run()
+      await vi.runAllTimersAsync()
+      await pending
+
+      expect(core.warning).toHaveBeenCalledWith(
+         expect.stringContaining(run.stableHelmVersion)
+      )
+      expect(toolCache.find).toHaveBeenCalledWith('helm', run.stableHelmVersion)
    })
 
    test('run() - resolve the latest patch for a major.minor version input', async () => {
